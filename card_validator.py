@@ -1,103 +1,27 @@
-"""Credit Card Brand Identifier.
+"""Credit Card Brand Identifier & Validation Engine (Enterprise Bridge).
 
-This module provides functions to:
-- Clean a card number
-- Verify the checksum using the Luhn algorithm
-- Identify the brand (Visa, MasterCard, American Express, Discover, etc.)
-
-Output: For each provided number, it shows the detected brand and whether the
-card passes the Luhn check.
+This module provides CLI and import compatibility for legacy scripts while leveraging
+the enterprise FinTech Sentinel engine underneath.
 
 Usage:
   python card_validator.py 4111111111111111 378282246310005
-
-If executed without arguments, it enters interactive mode (prompt).
+  python card_validator.py --server  # Starts the FastAPI Banking Server & Dashboard
 """
 from __future__ import annotations
 
 import argparse
-import re
+import sys
 from typing import Optional, Tuple
 
-
-def _clean(number: str) -> str:
-    """Removes everything that is not a digit."""
-    return re.sub(r"\D", "", number or "")
-
-
-def luhn_check(number: str) -> bool:
-    """Returns True if the number passes the Luhn algorithm check.
-
-    The number must contain only digits.
-    """
-    n = _clean(number)
-    if not n:
-        return False
-    total = 0
-    reverse_digits = n[::-1]
-    for i, d in enumerate(reverse_digits):
-        digit = int(d)
-        if i % 2 == 1:
-            digit *= 2
-            if digit > 9:
-                digit -= 9
-        total += digit
-    return total % 10 == 0
+from app.core.luhn import clean_card_number as _clean, validate_luhn as luhn_check
+from app.core.brands import detect_card_brand
+from app.services.validator_service import CardValidatorService
 
 
 def detect_brand(number: str) -> Optional[str]:
-    """Detects the brand from the clean number (digits only).
-
-    Returns the brand name or None if identification is not possible.
-    """
-    n = _clean(number)
-    ln = len(n)
-    if not n:
-        return None
-
-    # Visa
-    if n.startswith("4") and ln in (13, 16, 19):
-        return "Visa"
-
-    # MasterCard (51-55) and (2221-2720)
-    if ln == 16:
-        try:
-            first2 = int(n[:2])
-            first4 = int(n[:4])
-        except ValueError:
-            first2 = first4 = -1
-        if 51 <= first2 <= 55 or 2221 <= first4 <= 2720:
-            return "MasterCard"
-
-    # American Express
-    if ln == 15 and n.startswith(("34", "37")):
-        return "American Express"
-
-    # Discover (6011, 622126-622925, 644-649, 65)
-    if ln in (16, 19):
-        if n.startswith("6011") or n.startswith("65") or (len(n) >= 3 and 644 <= int(n[:3]) <= 649):
-            return "Discover"
-        if len(n) >= 6 and 622126 <= int(n[:6]) <= 622925:
-            return "Discover"
-
-    # JCB (3528-3589)
-    if 16 <= ln <= 19 and len(n) >= 4 and 3528 <= int(n[:4]) <= 3589:
-        return "JCB"
-
-    # Diners Club (300-305, 36, 38, 39)
-    if ln == 14 and (n.startswith("36") or (len(n) >= 3 and 300 <= int(n[:3]) <= 305)):
-        return "Diners Club"
-
-    # Elo - uses many BINs; checking some common prefixes.
-    elo_prefixes = ("4011", "4312", "4389", "4514", "4576", "5067", "506699", "5090", "6277", "6362", "6363", "5041")
-    if any(n.startswith(p) for p in elo_prefixes):
-        return "Elo"
-
-    # Hipercard (varied prefixes; simple heuristic)
-    if ln >= 13 and (n.startswith("38") or n.startswith("60")):
-        return "Hipercard"
-
-    return None
+    """Detects card brand name from card number."""
+    spec = detect_card_brand(number)
+    return spec.name if spec else None
 
 
 def format_result(number: str) -> Tuple[str, str, bool]:
@@ -109,16 +33,25 @@ def format_result(number: str) -> Tuple[str, str, bool]:
 
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Credit Card Brand Identifier + Luhn Verification")
-    p.add_argument("numbers", nargs="*", help="Card numbers to analyze (can contain spaces or hyphens). If empty, enters interactive mode.")
+    p = argparse.ArgumentParser(description="FinTech Sentinel - Credit Card Validation Engine")
+    p.add_argument("numbers", nargs="*", help="Card numbers to analyze. If empty, enters interactive prompt.")
+    p.add_argument("--server", action="store_true", help="Launch enterprise web dashboard and API server.")
+    p.add_argument("--port", type=int, default=8000, help="Port for API server (default: 8000)")
     return p.parse_args()
 
 
 def main():
     args = _parse_args()
+
+    if args.server:
+        import uvicorn
+        print(f"🚀 Launching FinTech Sentinel Enterprise Web Dashboard at http://localhost:{args.port} ...")
+        uvicorn.run("main:app", host="0.0.0.0", port=args.port, reload=False)
+        return
+
     if not args.numbers:
         # Interactive Mode
-        print("--- Credit Card Brand Identifier ---")
+        print("--- FinTech Sentinel Credit Card Validator ---")
         print("Press Enter on empty line to exit.")
         while True:
             try:
@@ -128,12 +61,14 @@ def main():
                 break
             if not s:
                 break
-            clean, brand, ok = format_result(s)
-            print(f"{clean} -> {brand} | Luhn: {'valid' if ok else 'invalid'}")
+            res = CardValidatorService.validate_card(s)
+            luhn_str = "valid" if res.is_valid_luhn else "invalid"
+            print(f"{res.masked_card} -> {res.brand} | Luhn: {luhn_str} | Risk: {res.risk_assessment.level if res.risk_assessment else 'N/A'}")
     else:
         for s in args.numbers:
-            clean, brand, ok = format_result(s)
-            print(f"{clean} -> {brand} | Luhn: {'valid' if ok else 'invalid'}")
+            res = CardValidatorService.validate_card(s)
+            luhn_str = "valid" if res.is_valid_luhn else "invalid"
+            print(f"{res.masked_card} -> {res.brand} | Luhn: {luhn_str} | Risk: {res.risk_assessment.level if res.risk_assessment else 'N/A'}")
 
 
 if __name__ == "__main__":

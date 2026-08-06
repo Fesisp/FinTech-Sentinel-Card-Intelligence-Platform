@@ -1,10 +1,9 @@
 import os
 import sys
 
-
-# Adiciona o diretório do módulo ao sys.path para importação durante os testes.
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, ROOT)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 import card_validator as mod
 
@@ -16,7 +15,6 @@ def test_luhn_valid_examples():
 
 def test_luhn_invalid_examples():
     assert mod.luhn_check("") is False
-    # change a digit to make it invalid
     assert mod.luhn_check("4111111111111112") is False
 
 
@@ -27,7 +25,6 @@ def test_detect_brand_known():
 
 
 def test_detect_brand_unknown():
-    # prefix not in heuristics
     assert mod.detect_brand("0000000000000000") is None
 
 

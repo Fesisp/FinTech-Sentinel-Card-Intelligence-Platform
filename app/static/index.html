@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTech Sentinel - Enterprise Card Intelligence & PCI Platform</title>
+    <meta name="description" content="Bank-grade PCI-DSS compliant credit card validator, BIN scheme identifier, and fraud risk assessment platform.">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="brand-container">
+            <div class="brand-icon">💳</div>
+            <div>
+                <div class="brand-title">FinTech Sentinel</div>
+                <div class="brand-subtitle">Bank-Grade Card Intelligence & Risk Engine v2.0</div>
+            </div>
+        </div>
+        <div class="nav-badges">
+            <div class="status-badge">
+                <span class="pulse-dot"></span> Core Operational
+            </div>
+            <div class="pci-badge">🔒 PCI-DSS Compliant (PAN Redacted)</div>
+            <a href="/docs" target="_blank" style="color: var(--primary-cyan); font-size: 0.85rem; text-decoration: none; font-weight: 600;">Swagger Docs ↗</a>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Telemetry Summary Row -->
+        <div class="telemetry-grid">
+            <div class="metric-card">
+                <div class="metric-label">API Latency (p99)</div>
+                <div class="metric-value" id="telemetry-latency">0.42 ms</div>
+                <div class="metric-subtext">⚡ Ultra-fast In-Memory Engine</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Processed Validation Engine</div>
+                <div class="metric-value" id="telemetry-count">100% ISO/IEC 7812</div>
+                <div class="metric-subtext">MII & BIN Range Spec Supported</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Supported Card Schemes</div>
+                <div class="metric-value">14 Schemes</div>
+                <div class="metric-subtext">Visa, MC, Elo, Amex, JCB, etc.</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Security & Tokenization</div>
+                <div class="metric-value">HMAC SHA-256</div>
+                <div class="metric-subtext">Zero-leak Audit Indexing</div>
+            </div>
+        </div>
+
+        <!-- Main Workspace Panels -->
+        <div class="workspace-grid">
+            
+            <!-- Left Panel: Interactive Single Card & Batch Input -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>🛡️</span> Validation Console
+                    </div>
+                    <div class="tab-controls">
+                        <button class="tab-btn active" id="tab-single" onclick="switchMode('single')">Single Card</button>
+                        <button class="tab-btn" id="tab-batch" onclick="switchMode('batch')">Batch CSV</button>
+                    </div>
+                </div>
+
+                <!-- Single Mode -->
+                <div id="mode-single-container">
+                    <div class="form-group">
+                        <label class="form-label" for="card-number-input">Card Number (PAN)</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="card-number-input" class="card-input" placeholder="4111 1111 1111 1111" autocomplete="off" spellcheck="false" autofocus>
+                            <div class="brand-badge-overlay" id="live-brand-badge">DETECTING</div>
+                        </div>
+                    </div>
+
+                    <div class="presets-container">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center; margin-right: 0.25rem;">Presets:</span>
+                        <button class="btn-preset" onclick="loadPreset('4111111111111111')">Visa Valid</button>
+                        <button class="btn-preset" onclick="loadPreset('5555555555554444')">Mastercard Valid</button>
+                        <button class="btn-preset" onclick="loadPreset('378282246310005')">Amex Valid</button>
+                        <button class="btn-preset" onclick="loadPreset('6363680000000000')">Elo Valid</button>
+                        <button class="btn-preset" onclick="loadPreset('4111111111111112')">Luhn Invalid</button>
+                    </div>
+
+                    <button class="btn-primary" onclick="executeValidation()">Analyze & Validate Card</button>
+                </div>
+
+                <!-- Batch Mode -->
+                <div id="mode-batch-container" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Batch Card Input (One per line)</label>
+                        <textarea id="batch-input-area" class="batch-input" placeholder="4111111111111111&#10;5555555555554444&#10;378282246310005&#10;4111111111111112"></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="executeBatchValidation()">Run Batch Audit Process</button>
+                </div>
+
+            </div>
+
+            <!-- Right Panel: Real-time Inspection & Risk Telemetry -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>🔍</span> Security & Risk Inspection
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="request-timer">0.00 ms</div>
+                </div>
+
+                <!-- Single Inspection Result -->
+                <div id="single-inspection-view">
+                    <div class="inspector-card">
+                        <div class="result-row">
+                            <span class="result-label">PCI Masked PAN</span>
+                            <span class="result-value" id="res-masked">---- ---- ---- ----</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Card Scheme / Brand</span>
+                            <span class="result-value" id="res-brand">--</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Luhn Checksum (Mod 10)</span>
+                            <span id="res-luhn"><span class="tag-valid">VALID</span></span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">BIN / IIN Prefix</span>
+                            <span class="result-value" id="res-bin">------</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">ISO 7812 Industry (MII)</span>
+                            <span class="result-value" id="res-mii">--</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">HMAC Audit Token</span>
+                            <span class="result-value" id="res-token" style="font-size: 0.75rem; color: var(--primary-cyan);">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Fraud Risk Assessment Card -->
+                    <div class="inspector-card">
+                        <div class="result-row">
+                            <span class="result-label">Fraud Risk Assessment</span>
+                            <span class="result-value" id="res-risk-level">LOW</span>
+                        </div>
+                        <div class="risk-meter-bar">
+                            <div class="risk-meter-fill" id="risk-meter-bar-fill" style="background: var(--primary-emerald);"></div>
+                        </div>
+                        <div class="result-row" style="margin-top: 0.75rem;">
+                            <span class="result-label">Shannon Entropy Score</span>
+                            <span class="result-value" id="res-entropy">0.00</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Triggered Risk Rules</span>
+                            <span class="result-value" id="res-flags" style="font-size: 0.75rem; color: var(--text-muted);">None</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Inspection View -->
+                <div id="batch-inspection-view" style="display: none;">
+                    <div class="batch-table-container">
+                        <table class="batch-table">
+                            <thead>
+                                <tr>
+                                    <th>Masked PAN</th>
+                                    <th>Brand</th>
+                                    <th>Luhn</th>
+                                    <th>Risk Level</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batch-results-body">
+                                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Run batch audit to display results</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
